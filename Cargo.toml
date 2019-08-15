@@ -1,0 +1,12 @@
+[package]
+name = "nightwriter"
+version = "0.1.0"
+authors = ["Michael Sloan <mgsloan@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+failure = "0.1.5"
+libc = "0.2.60"
+x11 = { version = "2.18.1", features = ["xlib"] }
+structopt = "0.2.18"
+chrono = "0.4.7"
