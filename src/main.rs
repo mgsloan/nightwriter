@@ -82,10 +82,12 @@ fn main() {
     }
     // TODO: cleanup gracefully on exceptions?
     // Note this cleanup probably isn't even necessary.
-    ungrab_keyboard(display);
-    destroy_ic(xic);
-    close_im(xim);
-    close_display(display);
+    unsafe {
+        XUngrabKeyboard(display, CurrentTime);
+        XDestroyIC(xic);
+        XCloseIM(xim);
+        XCloseDisplay(display);
+    }
 }
 
 enum HandlerResult {
@@ -229,10 +231,6 @@ fn grab_keyboard(display: *mut Display, root: Window) {
     }
 }
 
-fn ungrab_keyboard(display: *mut Display) {
-    unsafe { XUngrabKeyboard(display, CurrentTime) };
-}
-
 fn lookup_keysym(event: &mut XKeyEvent, index: c_int) -> Option<c_uint> {
     let result = unsafe { XLookupKeysym(event, index) };
     if result == NoSymbol.try_into().ok()? {
@@ -251,12 +249,6 @@ fn open_display() -> *mut Display {
         panic!("XOpenDisplay() failed");
     }
     display
-}
-
-fn close_display(display: *mut Display) {
-    unsafe {
-        XCloseDisplay(display);
-    }
 }
 
 fn default_root_window(display: *mut Display) -> Window {
@@ -293,12 +285,6 @@ fn open_im(display: *mut Display) -> XIM {
     im
 }
 
-fn close_im(input_method: XIM) {
-    unsafe {
-        XCloseIM(input_method);
-    }
-}
-
 fn create_ic(im: XIM, input_style: i32, client_window: Window) -> XIC {
     let c_input_style_name = CString::new("inputStyle").unwrap();
     let c_client_window_name = CString::new("clientWindow").unwrap();
@@ -321,12 +307,6 @@ fn create_ic(im: XIM, input_style: i32, client_window: Window) -> XIC {
 fn set_ic_focus(ic: XIC) {
     unsafe {
         XSetICFocus(ic);
-    }
-}
-
-fn destroy_ic(ic: XIC) {
-    unsafe {
-        XDestroyIC(ic);
     }
 }
 
