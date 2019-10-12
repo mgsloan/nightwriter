@@ -48,7 +48,7 @@ fn main() {
         None => PathBuf::from(Local::now().format(&output_file_template).to_string()),
     };
     let writer = Writer::initialize(&output_file_name).unwrap();
-    eprintln!("nightwriter is writing to {:#?}", output_file_name);
+    eprintln!("nightwriter: writing to {:#?}", output_file_name);
 
     with_keyboard_grabbed(&|keypress| {
         let KeyPress {
