@@ -5,18 +5,16 @@ extern crate structopt;
 extern crate x11;
 
 use chrono::Local;
-use failure::Error;
-use std::fs::{File, OpenOptions};
-use std::io::{Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use structopt::StructOpt;
 use x11::keysym;
-use std::cell::RefCell;
 
 mod config;
 mod grab_keyboard;
 mod mod_keys;
+mod writer;
 
+use crate::writer::Writer;
 use crate::mod_keys::ModKeys;
 use crate::config::read_config;
 use crate::grab_keyboard::{with_keyboard_grabbed, HandlerResult, KeyPress};
@@ -47,22 +45,14 @@ fn main() {
         Some(output_file_name) => output_file_name,
         None => PathBuf::from(Local::now().format("night-%Y-%m-%d").to_string()),
     };
-    let output_file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(output_file_name)
-        .unwrap();
-    let output_string = String::new();
-    let append_start = output_file.metadata().unwrap().len();
-    let writer = Writer { append_start, output_file: RefCell::new(output_file), output_string: RefCell::new(output_string) };
+    let writer = Writer::initialize(output_file_name).unwrap();
     with_keyboard_grabbed(&|keypress| {
         let KeyPress {
-            mod_keys,
+            mod_keys: ModKeys { ctrl, shift },
             key_code,
             key_sym,
             key_string,
         } = keypress;
-        let ModKeys { ctrl, shift } = mod_keys;
         if ctrl && shift && key_sym == Some(keysym::XK_Escape) {
             // NOTE: this is intentionally done early and before anything that can fail, with the
             // hope that nightwriter can never get in an unexitable state.
@@ -115,54 +105,4 @@ fn looks_like_exit(key_string: &String, key_sym: &Option<u32>) -> bool {
         || key_string == "\u{1c}"
         || key_string == "\u{1a}"
         || *key_sym == Some(keysym::XK_Escape)
-}
-
-struct Writer {
-    append_start: u64,
-    output_file: RefCell<File>,
-    output_string: RefCell<String>,
-}
-
-impl Writer {
-    pub fn append(&self, chr: char) -> Result<(), Error> {
-        self.output_file.borrow_mut().write_all(chr.to_string().as_bytes())?;
-        self.output_string.borrow_mut().push(chr);
-        Ok(())
-    }
-
-    pub fn delete_char(&self) -> Result<(), Error> {
-        let len = self.output_string.borrow().len();
-        if len > 0 {
-            self.truncate(len - 1)
-        } else {
-            self.truncate(len)
-        }
-    }
-
-    pub fn delete_word(&self) -> Result<(), Error> {
-        let new_len = match self.output_string.borrow().chars().rev().nth(0) {
-            None => 0,
-            Some(last_char) => {
-                // NOTE: Standard ctrl+backspace pays attention to symbols and such, seems
-                // convoluted.  Instead just have it delete up till the last whitespace.
-                if last_char.is_whitespace() {
-                    let truncate_len = self.output_string.borrow().rfind(|c: char| !c.is_whitespace())
-                            .map_or(0, |ix| ix + 1);
-                    self.output_string.borrow_mut().truncate(truncate_len);
-                }
-                self.output_string.borrow()
-                    .rfind(|c: char| c.is_whitespace())
-                    .map_or(0, |ix| ix + 1)
-            }
-        };
-        self.truncate(new_len)
-    }
-
-    fn truncate(&self, new_len: usize) -> Result<(), Error> {
-        self.output_string.borrow_mut().truncate(new_len);
-        let new_file_len = self.append_start + new_len as u64;
-        self.output_file.borrow().set_len(new_file_len)?;
-        self.output_file.borrow_mut().seek(SeekFrom::Start(new_file_len))?;
-        Ok(())
-    }
 }
