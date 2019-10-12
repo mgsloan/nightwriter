@@ -10,3 +10,5 @@ libc = "0.2.60"
 x11 = { version = "2.18.1", features = ["xlib"] }
 structopt = "0.2.18"
 chrono = "0.4.7"
+toml = "0.5.3"
+serde = { version = "1.0.101", features = ["derive"] }

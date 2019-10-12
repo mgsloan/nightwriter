@@ -19,19 +19,21 @@ use x11::keysym;
 use x11::xlib;
 use x11::xlib::*;
 
-#[derive(Debug, StructOpt)]
-#[structopt(
-    about = "Grabs keyboard and behaves like an append-only text editor until you press ctrl+alt+escape."
-)]
-struct Opt {
-    #[structopt(long = "debug")]
-    debug: bool,
-    #[structopt(parse(from_os_str), help = "File to write text to")]
-    output_file: Option<PathBuf>,
-}
+mod config;
+mod opt;
+
+use config::read_config;
+use opt::Opt;
 
 fn main() {
     let opt = Opt::from_args();
+    let config = match read_config(opt.config.clone()) {
+        Err(e) => {
+            println!("Failed to read nightwriter configuration:\n{}", e);
+            return ();
+        }
+        Ok(config) => config,
+    };
     // TODO: When appending to file, parse a prefix of it as utf8 as a sanity check.
     let output_file_name = match opt.output_file.clone() {
         Some(output_file_name) => output_file_name,
