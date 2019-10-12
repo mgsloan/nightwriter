@@ -41,6 +41,7 @@ fn main() {
         }
         Ok(config) => config,
     };
+
     let output_file_template = config.output_file_template.unwrap_or("night-%Y-%m-%d".to_string());
     let output_file_name = match opt.output_file.clone() {
         Some(output_file_name) => output_file_name,
@@ -48,6 +49,7 @@ fn main() {
     };
     let writer = Writer::initialize(&output_file_name).unwrap();
     eprintln!("nightwriter is writing to {:#?}", output_file_name);
+
     with_keyboard_grabbed(&|keypress| {
         let KeyPress {
             mod_keys: ModKeys { ctrl, shift },
@@ -55,11 +57,13 @@ fn main() {
             key_sym,
             key_string,
         } = keypress;
+
         if ctrl && shift && key_sym == Some(keysym::XK_Escape) {
             // NOTE: this is intentionally done early and before anything that can fail, with the
             // hope that nightwriter can never get in an unexitable state.
             return Ok(HandlerResult::Exit);
         }
+
         if key_sym == Some(keysym::XK_BackSpace) {
             if ctrl {
                 if opt.debug {
