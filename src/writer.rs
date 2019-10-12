@@ -11,7 +11,7 @@ pub struct Writer {
 }
 
 impl Writer {
-    pub fn initialize(output_file_name: PathBuf) -> Result<Writer, Error> {
+    pub fn initialize(output_file_name: &PathBuf) -> Result<Writer, Error> {
         let output_file = OpenOptions::new()
             .create(true)
             .append(true)

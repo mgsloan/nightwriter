@@ -41,11 +41,13 @@ fn main() {
         }
         Ok(config) => config,
     };
+    let output_file_template = config.output_file_template.unwrap_or("night-%Y-%m-%d".to_string());
     let output_file_name = match opt.output_file.clone() {
         Some(output_file_name) => output_file_name,
-        None => PathBuf::from(Local::now().format("night-%Y-%m-%d").to_string()),
+        None => PathBuf::from(Local::now().format(&output_file_template).to_string()),
     };
-    let writer = Writer::initialize(output_file_name).unwrap();
+    let writer = Writer::initialize(&output_file_name).unwrap();
+    eprintln!("nightwriter is writing to {:#?}", output_file_name);
     with_keyboard_grabbed(&|keypress| {
         let KeyPress {
             mod_keys: ModKeys { ctrl, shift },
