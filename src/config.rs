@@ -1,10 +1,10 @@
 use failure::Error;
+use crate::mod_keys::ModKeys;
 use serde::{Deserialize, Deserializer};
 use std::collections::HashMap;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::PathBuf;
-use toml;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -22,9 +22,7 @@ pub struct BashCommand(pub String);
 
 #[derive(Hash, PartialEq, Eq, Debug)]
 pub struct KeyboardShortcut {
-    pub ctrl: bool,
-    pub alt: bool,
-    pub shift: bool,
+    pub mod_keys: ModKeys,
     pub key: char,
 }
 
@@ -34,7 +32,6 @@ impl<'de> Deserialize<'de> for KeyboardShortcut {
         D: Deserializer<'de>,
     {
         let mut ctrl = false;
-        let mut alt = false;
         let mut shift = false;
         let string = String::deserialize(deserializer)?;
         let chunks = string.split("-").collect::<Vec<_>>();
@@ -43,8 +40,6 @@ impl<'de> Deserialize<'de> for KeyboardShortcut {
                 ctrl = true;
             } else if *chunk == "S" {
                 shift = true;
-            } else if *chunk == "M" || *chunk == "A" {
-                alt = true;
             } else {
                 // FIXME: proper error
                 panic!(
@@ -63,20 +58,12 @@ impl<'de> Deserialize<'de> for KeyboardShortcut {
         }
         let key = last_chunk.chars().nth(0).unwrap();
         return Ok(KeyboardShortcut {
-            ctrl,
-            alt,
-            shift,
+            mod_keys: ModKeys {
+                ctrl,
+                shift,
+            },
             key,
         });
-    }
-}
-
-fn default_config() -> Config {
-    Config {
-        output_file_template: None,
-        on_start: None,
-        on_end: None,
-        bindings: Bindings(HashMap::new()),
     }
 }
 
@@ -91,5 +78,14 @@ pub fn read_config(opt_config_path: Option<PathBuf>) -> Result<Config, Error> {
             }
         }
         Ok(config_contents) => Ok(toml::from_str(&config_contents)?),
+    }
+}
+
+fn default_config() -> Config {
+    Config {
+        output_file_template: None,
+        on_start: None,
+        on_end: None,
+        bindings: Bindings(HashMap::new()),
     }
 }
