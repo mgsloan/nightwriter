@@ -5,13 +5,14 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::PathBuf;
+use dirs;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
     pub output_file_template: Option<String>,
     pub on_start: Option<BashCommand>,
     pub on_end: Option<BashCommand>,
-    pub bindings: Bindings,
+    pub bindings: Option<Bindings>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -68,8 +69,24 @@ impl<'de> Deserialize<'de> for KeyboardShortcut {
 }
 
 pub fn read_config(opt_config_path: Option<PathBuf>) -> Result<Config, Error> {
-    let config_path = opt_config_path.unwrap_or(PathBuf::from(r"~/.nightwriter.toml"));
-    match fs::read_to_string(config_path) {
+    let path = match opt_config_path {
+        Some(path) => path,
+        None => {
+            match dirs::config_dir() {
+                None => {
+                    eprintln!("nightwriter: Neither XDG_CONFIG_HOME nor HOME environment variables are set, or --config option, so using default configuration");
+                    return Ok(default_config())
+                },
+                Some(dir) => {
+                    let mut path = dir.clone();
+                    path.push("nightwriter");
+                    path.push("config.toml");
+                    path
+                }
+            }
+        }
+    };
+    match fs::read_to_string(path.clone()) {
         Err(e) => {
             if e.kind() == ErrorKind::NotFound {
                 Ok(default_config())
@@ -77,7 +94,10 @@ pub fn read_config(opt_config_path: Option<PathBuf>) -> Result<Config, Error> {
                 Err(e)?
             }
         }
-        Ok(config_contents) => Ok(toml::from_str(&config_contents)?),
+        Ok(config_contents) => {
+            eprintln!("nightwriter: reading configuration from {:#?}", path);
+            Ok(toml::from_str(&config_contents)?)
+        },
     }
 }
 
@@ -86,6 +106,6 @@ fn default_config() -> Config {
         output_file_template: None,
         on_start: None,
         on_end: None,
-        bindings: Bindings(HashMap::new()),
+        bindings: None,
     }
 }

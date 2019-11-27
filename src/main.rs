@@ -3,11 +3,13 @@ extern crate failure;
 extern crate libc;
 extern crate structopt;
 extern crate x11;
+extern crate dirs;
 
 use chrono::Local;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use x11::keysym;
+use std::process::Command;
 
 mod config;
 mod grab_keyboard;
@@ -16,7 +18,7 @@ mod writer;
 
 use crate::writer::Writer;
 use crate::mod_keys::ModKeys;
-use crate::config::read_config;
+use crate::config::{read_config, BashCommand};
 use crate::grab_keyboard::{with_keyboard_grabbed, HandlerResult, KeyPress};
 
 #[derive(Debug, StructOpt)]
@@ -36,11 +38,14 @@ fn main() {
     let opt = Opt::from_args();
     let config = match read_config(opt.config.clone()) {
         Err(e) => {
-            println!("Failed to read nightwriter configuration:\n{}", e);
+            println!("nightwriter: Failed to read configuration: {}", e);
             return ();
         }
         Ok(config) => config,
     };
+    if opt.debug {
+        eprintln!("nightwriter: {:?}", config);
+    }
 
     let output_file_template = config.output_file_template.unwrap_or("night-%Y-%m-%d".to_string());
     let output_file_name = match opt.output_file.clone() {
@@ -49,6 +54,8 @@ fn main() {
     };
     let writer = Writer::initialize(&output_file_name).unwrap();
     eprintln!("nightwriter: writing to {:#?}", output_file_name);
+
+    config.on_start.map(|cmd| run_bash_command("configured on_start".to_string(), cmd));
 
     with_keyboard_grabbed(&|keypress| {
         let KeyPress {
@@ -111,4 +118,11 @@ fn looks_like_exit(key_string: &String, key_sym: &Option<u32>) -> bool {
         || key_string == "\u{1c}"
         || key_string == "\u{1a}"
         || *key_sym == Some(keysym::XK_Escape)
+}
+
+fn run_bash_command(context: String, command: BashCommand) {
+    match Command::new("bash").arg("-c").arg(command.0.clone()).spawn() {
+        Err(e) => eprintln!("Failed to run {} for {}. Exception occurred: {}", command.0.clone(), context, e),
+        Ok(_child) => (),
+    }
 }
