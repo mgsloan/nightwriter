@@ -38,7 +38,8 @@ impl Writer {
     }
 
     pub fn delete_word(&self) -> Result<(), Error> {
-        let new_len = match self.output_string.borrow().chars().rev().nth(0) {
+        let optional_last_char = self.output_string.borrow().chars().rev().nth(0).clone();
+        let new_len = match optional_last_char {
             None => 0,
             Some(last_char) => {
                 // NOTE: Standard ctrl+backspace pays attention to symbols and such, seems
