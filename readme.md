@@ -64,13 +64,18 @@ other uses as well.
   this might be helpful!
 
 * Overcoming writer's block and distractions.  Being unable to see
-  what you've written may be a fun restriction to play with.
+  what you've written is a fun restriction to play with.  It really
+  hampers the editorial influence of our inner perfectionist, which
+  can be great for getting thoughts down rapidly.
 
 * Creating a spectacle at the local cafe by typing into a keyboard
   without a computer in sight.
 
 * Recording thoughts while witnessing a beautiful sunset, without the
   nuisance of an interposing screen.
+
+* Watching serene nature videos while typing, without the distraction
+  of seeing the words you have typed.
 
 * Staring into the starry night, recording galactic thoughts by poking
   at keys.
