@@ -112,6 +112,10 @@ fn main() {
         }
         Ok(HandlerResult::KeepGoing)
     });
+
+    config
+        .on_end
+        .map(|cmd| run_bash_command("configured on_start".to_string(), cmd));
 }
 
 fn should_insert(chr: char) -> bool {
