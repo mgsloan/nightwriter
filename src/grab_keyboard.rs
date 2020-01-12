@@ -1,3 +1,4 @@
+use crate::mod_keys::ModKeys;
 use failure::Error;
 use libc::{c_char, c_int, c_long, c_uint, c_void};
 use std::convert::TryInto;
@@ -6,7 +7,6 @@ use std::mem;
 use std::{ptr, str};
 use x11::xlib;
 use x11::xlib::*;
-use crate::mod_keys::ModKeys;
 
 pub struct KeyPress {
     pub mod_keys: ModKeys,

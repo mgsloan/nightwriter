@@ -1,11 +1,11 @@
-use failure::Error;
 use crate::mod_keys::ModKeys;
+use dirs;
+use failure::Error;
 use serde::{Deserialize, Deserializer};
 use std::collections::HashMap;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::PathBuf;
-use dirs;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -59,10 +59,7 @@ impl<'de> Deserialize<'de> for KeyboardShortcut {
         }
         let key = last_chunk.chars().nth(0).unwrap();
         return Ok(KeyboardShortcut {
-            mod_keys: ModKeys {
-                ctrl,
-                shift,
-            },
+            mod_keys: ModKeys { ctrl, shift },
             key,
         });
     }
@@ -71,20 +68,18 @@ impl<'de> Deserialize<'de> for KeyboardShortcut {
 pub fn read_config(opt_config_path: Option<PathBuf>) -> Result<Config, Error> {
     let path = match opt_config_path {
         Some(path) => path,
-        None => {
-            match dirs::config_dir() {
-                None => {
-                    eprintln!("nightwriter: Neither XDG_CONFIG_HOME nor HOME environment variables are set, or --config option, so using default configuration");
-                    return Ok(default_config())
-                },
-                Some(dir) => {
-                    let mut path = dir.clone();
-                    path.push("nightwriter");
-                    path.push("config.toml");
-                    path
-                }
+        None => match dirs::config_dir() {
+            None => {
+                eprintln!("nightwriter: Neither XDG_CONFIG_HOME nor HOME environment variables are set, or --config option, so using default configuration");
+                return Ok(default_config());
             }
-        }
+            Some(dir) => {
+                let mut path = dir.clone();
+                path.push("nightwriter");
+                path.push("config.toml");
+                path
+            }
+        },
     };
     match fs::read_to_string(path.clone()) {
         Err(e) => {
@@ -97,7 +92,7 @@ pub fn read_config(opt_config_path: Option<PathBuf>) -> Result<Config, Error> {
         Ok(config_contents) => {
             eprintln!("nightwriter: reading configuration from {:#?}", path);
             Ok(toml::from_str(&config_contents)?)
-        },
+        }
     }
 }
 

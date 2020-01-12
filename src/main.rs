@@ -1,25 +1,25 @@
 extern crate chrono;
+extern crate dirs;
 extern crate failure;
 extern crate libc;
 extern crate structopt;
 extern crate x11;
-extern crate dirs;
 
 use chrono::Local;
 use std::path::PathBuf;
+use std::process::Command;
 use structopt::StructOpt;
 use x11::keysym;
-use std::process::Command;
 
 mod config;
 mod grab_keyboard;
 mod mod_keys;
 mod writer;
 
-use crate::writer::Writer;
-use crate::mod_keys::ModKeys;
 use crate::config::{read_config, BashCommand};
 use crate::grab_keyboard::{with_keyboard_grabbed, HandlerResult, KeyPress};
+use crate::mod_keys::ModKeys;
+use crate::writer::Writer;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -47,7 +47,9 @@ fn main() {
         eprintln!("nightwriter: {:?}", config);
     }
 
-    let output_file_template = config.output_file_template.unwrap_or("night-%Y-%m-%d".to_string());
+    let output_file_template = config
+        .output_file_template
+        .unwrap_or("night-%Y-%m-%d".to_string());
     let output_file_name = match opt.output_file.clone() {
         Some(output_file_name) => output_file_name,
         None => PathBuf::from(Local::now().format(&output_file_template).to_string()),
@@ -55,7 +57,9 @@ fn main() {
     let writer = Writer::initialize(&output_file_name).unwrap();
     eprintln!("nightwriter: writing to {:#?}", output_file_name);
 
-    config.on_start.map(|cmd| run_bash_command("configured on_start".to_string(), cmd));
+    config
+        .on_start
+        .map(|cmd| run_bash_command("configured on_start".to_string(), cmd));
 
     with_keyboard_grabbed(&|keypress| {
         let KeyPress {
@@ -92,9 +96,9 @@ fn main() {
                         eprintln!("nightwriter: append {:?}", chr);
                     }
                     if chr == '\r' {
-                      writer.append('\n')?;
+                        writer.append('\n')?;
                     } else {
-                      writer.append(chr)?;
+                        writer.append(chr)?;
                     }
                 } else if opt.debug {
                     eprintln!("nightwriter: ignoring {:?}", chr);
@@ -125,8 +129,17 @@ fn looks_like_exit(key_string: &String, key_sym: &Option<u32>) -> bool {
 }
 
 fn run_bash_command(context: String, command: BashCommand) {
-    match Command::new("bash").arg("-c").arg(command.0.clone()).spawn() {
-        Err(e) => eprintln!("Failed to run {} for {}. Exception occurred: {}", command.0.clone(), context, e),
+    match Command::new("bash")
+        .arg("-c")
+        .arg(command.0.clone())
+        .spawn()
+    {
+        Err(e) => eprintln!(
+            "Failed to run {} for {}. Exception occurred: {}",
+            command.0.clone(),
+            context,
+            e
+        ),
         Ok(_child) => (),
     }
 }
