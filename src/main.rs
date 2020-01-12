@@ -91,7 +91,11 @@ fn main() {
                     if opt.debug {
                         eprintln!("nightwriter: append {:?}", chr);
                     }
-                    writer.append(chr)?;
+                    if chr == '\r' {
+                      writer.append('\n')?;
+                    } else {
+                      writer.append(chr)?;
+                    }
                 } else if opt.debug {
                     eprintln!("nightwriter: ignoring {:?}", chr);
                 }
