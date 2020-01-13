@@ -15,12 +15,14 @@ pub struct KeyPress {
     pub key_string: String,
 }
 
-pub enum HandlerResult {
+pub enum HandlerResult<T> {
     KeepGoing,
-    Exit,
+    Exit(T),
 }
 
-pub fn with_keyboard_grabbed(handle_keypress: &Fn(KeyPress) -> Result<HandlerResult, Error>) {
+pub fn with_keyboard_grabbed<T>(
+    handle_keypress: &Fn(KeyPress) -> Result<HandlerResult<T>, Error>,
+) -> T {
     let display = open_display();
     let root = default_root_window(display);
     let xim = open_im(display);
@@ -32,7 +34,7 @@ pub fn with_keyboard_grabbed(handle_keypress: &Fn(KeyPress) -> Result<HandlerRes
         unsafe {
             XNextEvent(display, &mut x_event);
         }
-        let result = match unsafe { x_event.type_ } {
+        let handler_result = match unsafe { x_event.type_ } {
             xlib::KeyPress => {
                 let event: &XKeyEvent = unsafe { mem::transmute(&x_event) };
                 if filter_event(&x_event, root) {
@@ -42,20 +44,22 @@ pub fn with_keyboard_grabbed(handle_keypress: &Fn(KeyPress) -> Result<HandlerRes
             }
             _ => Ok(HandlerResult::KeepGoing),
         };
-        match result {
+        match handler_result {
             Ok(HandlerResult::KeepGoing) => {}
-            Ok(HandlerResult::Exit) => break,
+            Ok(HandlerResult::Exit(result)) => {
+                // Note this cleanup probably isn't even necessary.
+                unsafe {
+                    XUngrabKeyboard(display, CurrentTime);
+                    XDestroyIC(xic);
+                    XCloseIM(xim);
+                    XCloseDisplay(display);
+                }
+                return result;
+            }
             Err(e) => {
                 eprintln!("nightwriter: ignoring error: {:?}", e);
             }
         }
-    }
-    // Note this cleanup probably isn't even necessary.
-    unsafe {
-        XUngrabKeyboard(display, CurrentTime);
-        XDestroyIC(xic);
-        XCloseIM(xim);
-        XCloseDisplay(display);
     }
 }
 

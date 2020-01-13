@@ -79,7 +79,7 @@ fn main() {
         if ctrl && shift && key_sym == Some(keysym::XK_Escape) {
             // NOTE: this is intentionally done early and before anything that can fail, with the
             // hope that nightwriter can never get in an unexitable state.
-            return Ok(HandlerResult::Exit);
+            return Ok(HandlerResult::Exit(()));
         }
 
         if key_sym == Some(keysym::XK_BackSpace) {

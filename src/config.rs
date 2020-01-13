@@ -66,10 +66,10 @@ impl<'de> Deserialize<'de> for KeyboardShortcut {
                 '-'
             } else {
                 // FIXME: proper error
-                    panic!(
-                        "Expected keyboard shortcut key to be just one ascii char, instad got: {}",
-                        last_chunk
-                    )
+                panic!(
+                    "Expected keyboard shortcut key to be just one ascii char, instad got: {}",
+                    last_chunk
+                )
             }
         } else {
             last_chunk.chars().nth(0).unwrap()
