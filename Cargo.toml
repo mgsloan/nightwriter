@@ -13,3 +13,5 @@ chrono = "0.4.7"
 toml = "0.5.3"
 serde = { version = "1.0.101", features = ["derive"] }
 dirs = "2.0.2"
+quickcheck = "0.9.1"
+quickcheck_derive = "0.2.1"

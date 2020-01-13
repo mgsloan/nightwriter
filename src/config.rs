@@ -1,13 +1,14 @@
 use crate::mod_keys::ModKeys;
 use dirs;
 use failure::Error;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     pub output_file_template: Option<String>,
     pub on_start: Option<BashCommand>,
@@ -15,13 +16,22 @@ pub struct Config {
     pub bindings: Option<Bindings>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
+pub enum Command {
+    Bash {
+        #[serde(rename = "bash")]
+        command: BashCommand,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Bindings(pub HashMap<KeyboardShortcut, BashCommand>);
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct BashCommand(pub String);
 
-#[derive(Hash, PartialEq, Eq, Debug)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone, Arbitrary)]
 pub struct KeyboardShortcut {
     pub mod_keys: ModKeys,
     pub key: char,
@@ -41,6 +51,7 @@ impl<'de> Deserialize<'de> for KeyboardShortcut {
                 ctrl = true;
             } else if *chunk == "S" {
                 shift = true;
+            } else if *chunk == "" {
             } else {
                 // FIXME: proper error
                 panic!(
@@ -50,18 +61,40 @@ impl<'de> Deserialize<'de> for KeyboardShortcut {
             }
         }
         let last_chunk = chunks.last().unwrap_or(&"");
-        if last_chunk.len() != 1 {
-            // FIXME: proper error
-            panic!(
-                "Expected keyboard shortcut key to be just one ascii char, instad got: {}",
-                last_chunk
-            );
-        }
-        let key = last_chunk.chars().nth(0).unwrap();
+        let key = if last_chunk.len() != 1 {
+            if chunks.len() > 1 && chunks[chunks.len() - 2] == "" {
+                '-'
+            } else {
+                // FIXME: proper error
+                    panic!(
+                        "Expected keyboard shortcut key to be just one ascii char, instad got: {}",
+                        last_chunk
+                    )
+            }
+        } else {
+            last_chunk.chars().nth(0).unwrap()
+        };
         return Ok(KeyboardShortcut {
             mod_keys: ModKeys { ctrl, shift },
             key,
         });
+    }
+}
+
+impl Serialize for KeyboardShortcut {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut result = String::with_capacity(6);
+        if self.mod_keys.ctrl {
+            result.push_str("C-");
+        }
+        if self.mod_keys.shift {
+            result.push_str("S-");
+        }
+        result.push(self.key);
+        result.serialize(serializer)
     }
 }
 
@@ -102,5 +135,36 @@ fn default_config() -> Config {
         on_start: None,
         on_end: None,
         bindings: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(PartialEq, Eq, Serialize, Deserialize, Debug)]
+    struct Wrapper<T> {
+        field: T,
+    }
+
+    quickcheck! {
+        fn keyboard_shortcut_roundtrips(input: KeyboardShortcut) -> bool {
+            if !input.key.is_ascii() || !input.key.is_alphanumeric() {
+                // TODO: ideally not meeting a precondition would not count as a test of the
+                // property.
+                return true;
+            } else {
+                eprintln!("input = {:?}", input);
+                match toml::to_string(&Wrapper { field: input.clone() }) {
+                    Ok(serialized) => {
+                        eprintln!("serialized = {}", serialized);
+                        let result = toml::from_str(&serialized);
+                        eprintln!("deserialized = {:?}",  result);
+                        Ok(Wrapper { field: input }) == result
+                    }
+                    Err(_) => false,
+                }
+            }
+        }
     }
 }

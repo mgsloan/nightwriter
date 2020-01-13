@@ -5,6 +5,13 @@ extern crate libc;
 extern crate structopt;
 extern crate x11;
 
+#[cfg(test)]
+#[macro_use]
+extern crate quickcheck;
+
+#[macro_use]
+extern crate quickcheck_derive;
+
 use chrono::Local;
 use std::path::PathBuf;
 use std::process::Command;
