@@ -10,8 +10,8 @@ libc = "0.2.60"
 x11 = { version = "2.18.1", features = ["xlib"] }
 structopt = "0.2.18"
 chrono = "0.4.7"
-toml = "0.5.3"
+toml = "0.5.6"
 serde = { version = "1.0.101", features = ["derive"] }
 dirs = "2.0.2"
-quickcheck = "0.9.1"
+quickcheck = "0.9.2"
 quickcheck_derive = "0.2.1"

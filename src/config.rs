@@ -1,41 +1,66 @@
 use crate::mod_keys::ModKeys;
 use dirs;
 use failure::Error;
+use serde::de;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
+use std::fmt;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::PathBuf;
+use std::string::String;
+use std::vec::Vec;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub output_file_template: Option<String>,
-    pub on_start: Option<BashCommand>,
-    pub on_end: Option<BashCommand>,
+    pub on_start: Option<Command>,
+    pub on_end: Option<Command>,
     pub bindings: Option<Bindings>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
+pub struct Bindings(HashMap<KeyboardShortcut, Vec<Command>>);
+
+#[derive(Hash, PartialEq, Eq, Debug, Clone, Arbitrary)]
 pub enum Command {
-    Bash {
-        #[serde(rename = "bash")]
-        command: BashCommand,
-    },
+    Bash(String),
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Bindings(pub HashMap<KeyboardShortcut, BashCommand>);
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct BashCommand(pub String);
 
 #[derive(Hash, PartialEq, Eq, Debug, Clone, Arbitrary)]
 pub struct KeyboardShortcut {
     pub mod_keys: ModKeys,
     pub key: char,
 }
+
+/*
+pub fn output_test_config() {
+    let mut bindings = HashMap::new();
+    let mut commands = Vec::new();
+    commands.push(Command::Bash(String::from("echo hi")));
+    bindings.insert(
+        KeyboardShortcut {
+            mod_keys: ModKeys {
+                ctrl: true,
+                shift: false,
+            },
+            key: 'c',
+        },
+        commands,
+    );
+    eprintln!(
+        "{}",
+        toml::to_string(&Config {
+            bindings: Some(Bindings(bindings)),
+            on_end: None,
+            on_start: None,
+            output_file_template: None
+        })
+        .unwrap()
+    );
+}
+*/
 
 impl<'de> Deserialize<'de> for KeyboardShortcut {
     fn deserialize<D>(deserializer: D) -> Result<KeyboardShortcut, D::Error>
@@ -98,6 +123,54 @@ impl Serialize for KeyboardShortcut {
     }
 }
 
+impl<'de> Deserialize<'de> for Command {
+    fn deserialize<D>(deserializer: D) -> Result<Command, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(CommandVisitor)
+    }
+}
+
+struct CommandVisitor;
+
+impl<'de> de::Visitor<'de> for CommandVisitor {
+    type Value = Command;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        // TODO: improve
+        formatter.write_str("a command")
+    }
+
+    fn visit_str<E>(self, input: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        let prefixes = vec!["bash"];
+        let input_vec: Vec<&str> = input.splitn(2, ' ').collect();
+        match input_vec.as_slice() {
+            [prefix, command] if *prefix == "bash" => Ok(Command::Bash(String::from(*command))),
+            [_, _] | [_] => Err(E::custom(format!(
+                "Unexpected command prefix in command {:?} (expected one of {:?})",
+                input, prefixes
+            ))),
+            _ => panic!("Impossible case"),
+        }
+    }
+}
+
+impl Serialize for Command {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        (match self {
+            Command::Bash(command) => format!("bash {}", command),
+        })
+        .serialize(serializer)
+    }
+}
+
 pub fn read_config(opt_config_path: Option<PathBuf>) -> Result<Config, Error> {
     let path = match opt_config_path {
         Some(path) => path,
@@ -140,11 +213,32 @@ fn default_config() -> Config {
 
 #[cfg(test)]
 mod tests {
+    /* Re-enable once toml-rs#372 is included in a release
+
     use super::*;
+    use serde::de::DeserializeOwned;
+    use std::fmt::Debug;
 
     #[derive(PartialEq, Eq, Serialize, Deserialize, Debug)]
     struct Wrapper<T> {
         field: T,
+    }
+
+    fn check_roundtrip<T: Clone + Debug + Serialize + DeserializeOwned + PartialEq>(
+        input: T,
+    ) -> bool {
+        eprintln!("input = {:?}", input);
+        match toml::to_string(&Wrapper {
+            field: input.clone(),
+        }) {
+            Ok(serialized) => {
+                eprintln!("serialized = {}", serialized);
+                let result = toml::from_str(&serialized);
+                eprintln!("deserialized = {:?}", result);
+                Ok(Wrapper { field: input }) == result
+            }
+            Err(_) => false,
+        }
     }
 
     quickcheck! {
@@ -154,17 +248,18 @@ mod tests {
                 // property.
                 return true;
             } else {
-                eprintln!("input = {:?}", input);
-                match toml::to_string(&Wrapper { field: input.clone() }) {
-                    Ok(serialized) => {
-                        eprintln!("serialized = {}", serialized);
-                        let result = toml::from_str(&serialized);
-                        eprintln!("deserialized = {:?}",  result);
-                        Ok(Wrapper { field: input }) == result
-                    }
-                    Err(_) => false,
-                }
+                check_roundtrip(input)
             }
         }
+
+        fn command_roundtrips(input: Command) -> bool {
+            check_roundtrip(input)
+        }
+
+        fn string_roundtrips(input: String) -> bool {
+            check_roundtrip(input)
+        }
     }
+
+    */
 }

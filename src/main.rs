@@ -14,7 +14,7 @@ extern crate quickcheck_derive;
 
 use chrono::Local;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::Command as ProcessCommand;
 use structopt::StructOpt;
 use x11::keysym;
 
@@ -23,7 +23,7 @@ mod grab_keyboard;
 mod mod_keys;
 mod writer;
 
-use crate::config::{read_config, BashCommand};
+use crate::config::{read_config, Command};
 use crate::grab_keyboard::{with_keyboard_grabbed, HandlerResult, KeyPress};
 use crate::mod_keys::ModKeys;
 use crate::writer::Writer;
@@ -66,7 +66,7 @@ fn main() {
 
     config
         .on_start
-        .map(|cmd| run_bash_command("configured on_start".to_string(), cmd));
+        .map(|cmd| run_command("configured on_start".to_string(), cmd));
 
     with_keyboard_grabbed(&|keypress| {
         let KeyPress {
@@ -122,7 +122,7 @@ fn main() {
 
     config
         .on_end
-        .map(|cmd| run_bash_command("configured on_start".to_string(), cmd));
+        .map(|cmd| run_command("configured on_start".to_string(), cmd));
 }
 
 fn should_insert(chr: char) -> bool {
@@ -139,15 +139,21 @@ fn looks_like_exit(key_string: &String, key_sym: &Option<u32>) -> bool {
         || *key_sym == Some(keysym::XK_Escape)
 }
 
-fn run_bash_command(context: String, command: BashCommand) {
-    match Command::new("bash")
+fn run_command(context: String, command: Command) {
+    match command {
+        Command::Bash(command_text) => run_bash_command(context, command_text)
+    }
+}
+
+fn run_bash_command(context: String, command: String) {
+    match ProcessCommand::new("bash")
         .arg("-c")
-        .arg(command.0.clone())
+        .arg(command.clone())
         .spawn()
     {
         Err(e) => eprintln!(
             "Failed to run {} for {}. Exception occurred: {}",
-            command.0.clone(),
+            command.clone(),
             context,
             e
         ),
