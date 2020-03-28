@@ -2,3 +2,4 @@
 **/*.rs.bk
 /old.rs
 todo.md
+/toml-rs/
